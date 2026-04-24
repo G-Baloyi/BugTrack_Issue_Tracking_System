@@ -58,7 +58,7 @@ A modern, feature-rich issue tracking system built with vanilla JavaScript, HTML
 
 ## Live Demo
 
-[View Live Demo](https://g-baloyi.github.io/BugTrack_Issue_Tracking_System/))
+[View Live Demo](https://g-baloyi.github.io/BugTrack_Issue_Tracking_System/)
 
 **Demo Credentials:**
 - Username: `admin`
