@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BugTrack — Create Issue</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<script src="login.js"></script>
+<script src="storage.js"></script>
+<script src="shared.js"></script>
+<script>
+checkAuth();
+const people = getPeople();
+const projects = getProjects();
+const pOpts = people.map(p => `<option value="${p.id}">${p.name} ${p.surname}</option>`).join("");
+const projOpts = projects.map(p => `<option value="${p.id}">${p.name}</option>`).join("");
+const today = new Date().toISOString().split("T")[0];
+
+buildShell("create", `
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1 class="page-title">Create Issue</h1>
+      <p class="page-subtitle">Log a new bug or problem for tracking</p>
+                    </div>
+    <a href="view-all-issues.html" class="btn btn-ghost"><i class="fas fa-arrow-left"></i> Back</a>
+                    </div>
+  <div class="form-card" style="max-width:800px;">
+    <h2 class="form-section-title"><i class="fas fa-plus-circle"></i> New Issue</h2>
+    <div class="form-grid form-grid-1">
+      <div class="field">
+        <label>Issue Summary *</label>
+        <input type="text" id="summary" placeholder="Brief one-line description of the issue">
+                </div>
+            </div>
+    <div class="form-grid form-grid-1">
+      <div class="field">
+        <label>Detailed Description</label>
+        <textarea id="description" rows="4" placeholder="Steps to reproduce, expected vs actual behaviour, affected users…"></textarea>
+                        </div>
+                    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Reported By *</label>
+        <select id="identifiedBy"><option value="">Select person</option>${pOpts}</select>
+                </div>
+      <div class="field">
+        <label>Date Identified *</label>
+        <input type="date" id="dateIdentified" value="${today}">
+                                    </div>
+                                </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Priority *</label>
+        <select id="priority">
+                                            <option value="low">Low</option>
+                                            <option value="medium" selected>Medium</option>
+                                            <option value="high">High</option>
+                                        </select>
+                                    </div>
+      <div class="field">
+        <label>Project *</label>
+        <select id="project"><option value="">Select project</option>${projOpts}</select>
+                                    </div>
+                                </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Assign To</label>
+        <select id="assignee"><option value="">Unassigned</option>${pOpts}</select>
+                                    </div>
+      <div class="field">
+        <label>Target Resolution Date *</label>
+        <input type="date" id="targetDate">
+                                    </div>
+                                </div>
+    <div class="form-actions">
+      <a href="dashboard.html" class="btn btn-ghost"><i class="fas fa-times"></i> Cancel</a>
+      <button class="btn btn-primary" onclick="createIssue()"><i class="fas fa-save"></i> Create Issue</button>
+    </div>
+  </div>
+`);
+
+function createIssue() {
+  const summary = document.getElementById("summary").value.trim();
+  if (!summary) { showToast("Summary is required", "error"); return; }
+  if (!document.getElementById("identifiedBy").value) { showToast("Reporter is required", "error"); return; }
+  if (!document.getElementById("project").value) { showToast("Project is required", "error"); return; }
+  if (!document.getElementById("targetDate").value) { showToast("Target date is required", "error"); return; }
+
+  const issues = getIssues();
+  const newId = issues.length > 0 ? Math.max(...issues.map(i=>i.id)) + 1 : 1;
+  issues.push({
+    id: newId,
+    summary,
+    description: document.getElementById("description").value,
+    identifiedBy: parseInt(document.getElementById("identifiedBy").value) || null,
+    dateIdentified: document.getElementById("dateIdentified").value,
+    projectId: parseInt(document.getElementById("project").value),
+    assignedTo: parseInt(document.getElementById("assignee").value) || null,
+    status: "open",
+    priority: document.getElementById("priority").value,
+    targetResoDate: document.getElementById("targetDate").value,
+    actualResoDate: "",
+    resoSummary: "",
+    createdAt: new Date().toISOString()
+  });
+  saveIssues(issues);
+  showToast(`Issue #${newId} created`);
+  setTimeout(() => window.location.href = "view-all-issues.html", 800);
+        }
+    </script>
+</body>
+</html>

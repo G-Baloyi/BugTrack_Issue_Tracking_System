@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugTrack — My Issues</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-mode">
+    <script src="login.js"></script>
+    <script src="storage.js"></script>
+    <script src="shared.js"></script>
+    <script>
+        checkAuth();
+        const people = getPeople();
+        const me = people[0];
+        const allIssues = getIssues();
+        const myIssues = allIssues.filter(i => i.assignedTo === me?.id);
+        const myOpen = myIssues.filter(i => i.status === "open").length;
+        const myOverdue = myIssues.filter(i => i.status === "overdue").length;
+        const myResolved = myIssues.filter(i => i.status === "resolved").length;
+
+        buildShell("my-issues", `
+            <div class="page-header">
+                <div class="page-title-group">
+                    <h1 class="page-title">My Issues</h1>
+                    <p class="page-subtitle">Assigned to ${me ? me.name + " " + me.surname : "you"}</p>
+                </div>
+                <a href="create-issue.html" class="btn btn-primary"><i class="fas fa-plus"></i> New Issue</a>
+            </div>
+            <div class="stats-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
+                <div class="stat-card amber"><div class="stat-icon"><i class="fas fa-circle-dot"></i></div><div class="stat-num">${myOpen}</div><div class="stat-label">Open</div></div>
+                <div class="stat-card red"><div class="stat-icon"><i class="fas fa-clock"></i></div><div class="stat-num">${myOverdue}</div><div class="stat-label">Overdue</div></div>
+                <div class="stat-card green"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div class="stat-num">${myResolved}</div><div class="stat-label">Resolved</div></div>
+            </div>
+            ${myIssues.length === 0 ? `
+                <div style="text-align:center;padding:80px 0;color:var(--text3);">
+                    <i class="fas fa-inbox" style="font-size:48px;display:block;margin-bottom:16px;opacity:.3;"></i>
+                    <p>No issues assigned to you</p>
+                </div>
+            ` : `
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th><th>Summary</th><th>Project</th><th>Priority</th><th>Status</th><th>Target Date</th><th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${myIssues.map(issue => `
+                                <tr>
+                                    <td><span class="id-badge">#${issue.id}</span></td>
+                                    <td><strong>${escapeHtml(issue.summary)}</strong></td>
+                                    <td>${getProjectName(issue.projectId)}</td>
+                                    <td><span class="badge badge-${issue.priority}">${issue.priority}</span></td>
+                                    <td><span class="badge badge-${issue.status}">${issue.status}</span></td>
+                                    <td>${issue.targetResoDate || "—"}</td>
+                                    <td class="td-actions">
+                                        <button class="btn-icon" onclick="window.location.href='edit-issue.html?id=${issue.id}'"><i class="fas fa-edit"></i></button>
+                                    </td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                </div>
+            `}
+        `);
+    </script>
+</body>
+</html>

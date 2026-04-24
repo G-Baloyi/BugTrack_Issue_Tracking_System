@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugTrack — All Issues</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-mode">
+    <div class="app-shell">
+        <nav class="topbar">
+            <a href="dashboard.html" class="topbar-logo"><i class="fas fa-bug"></i> BugTrack</a>
+            <div class="topbar-right">
+                <div class="topbar-user"><div class="topbar-avatar">AD</div><span class="topbar-username">admin</span></div>
+                <button class="btn-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+            </div>
+        </nav>
+        <div class="app-body">
+            <aside class="sidebar">
+                <span class="nav-section-label">Navigation</span>
+                <a href="dashboard.html" class="nav-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                <a href="create-issue.html" class="nav-link"><i class="fas fa-plus-circle"></i> Create Issue</a>
+                <a href="view-all-issues.html" class="nav-link active"><i class="fas fa-list-ul"></i> All Issues</a>
+                <a href="my-issues.html" class="nav-link"><i class="fas fa-user-check"></i> My Issues</a>
+                <a href="people.html" class="nav-link"><i class="fas fa-users"></i> People</a>
+                <a href="projects.html" class="nav-link"><i class="fas fa-project-diagram"></i> Projects</a>
+            </aside>
+            <main class="main-content">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1 class="page-title">All Issues</h1>
+                        <p class="page-subtitle">Browse, filter and manage every ticket</p>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <div class="view-toggle">
+                            <button class="view-btn active" id="btnTable" onclick="setView('table')"><i class="fas fa-table"></i> Table</button>
+                            <button class="view-btn" id="btnGroup" onclick="setView('group')"><i class="fas fa-layer-group"></i> By Reporter</button>
+                        </div>
+                        <a href="create-issue.html" class="btn btn-primary"><i class="fas fa-plus"></i> New Issue</a>
+                    </div>
+                </div>
+
+                <div class="filter-bar">
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Search issues…" oninput="applyFilters()">
+                    </div>
+                    <div class="filter-group">
+                        <label>Status</label>
+                        <select id="fStatus" onchange="applyFilters()">
+                            <option value="">All</option>
+                            <option value="open">Open</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="overdue">Overdue</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Priority</label>
+                        <select id="fPriority" onchange="applyFilters()">
+                            <option value="">All</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Project</label>
+                        <select id="fProject" onchange="applyFilters()"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Reporter</label>
+                        <select id="fReporter" onchange="applyFilters()"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Assignee</label>
+                        <select id="fAssignee" onchange="applyFilters()"><option value="">All</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>From</label>
+                        <input type="date" id="fDateFrom" onchange="applyFilters()">
+                    </div>
+                    <div class="filter-group">
+                        <label>To</label>
+                        <input type="date" id="fDateTo" onchange="applyFilters()">
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="clearFilters()"><i class="fas fa-times"></i> Clear</button>
+                </div>
+
+                <div id="activeTags" class="filter-active-tags"></div>
+                <div id="filterCount" class="filter-count"></div>
+
+                <div id="tableView">
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th onclick="sortBy('id')" id="th-id">ID</th>
+                                    <th onclick="sortBy('summary')" id="th-summary">Summary</th>
+                                    <th onclick="sortBy('projectId')" id="th-projectId">Project</th>
+                                    <th onclick="sortBy('identifiedBy')" id="th-identifiedBy">Reporter</th>
+                                    <th onclick="sortBy('assignedTo')" id="th-assignedTo">Assignee</th>
+                                    <th onclick="sortBy('priority')" id="th-priority">Priority</th>
+                                    <th onclick="sortBy('status')" id="th-status">Status</th>
+                                    <th onclick="sortBy('targetResoDate')" id="th-targetResoDate">Target Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="issuesTbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="groupView" style="display:none;"></div>
+            </main>
+        </div>
+    </div>
+
+    <div id="detailModal" class="modal-overlay hidden"></div>
+
+    <script src="login.js"></script>
+    <script src="storage.js"></script>
+    <script src="shared.js"></script>
+    <script>
+        if (localStorage.getItem("isLoggedIn") !== "true") { window.location.href = "index.html"; }
+
+        initTheme();
+        addThemeToggle();
+
+        var allIssues = getIssues();
+        var allPeople = getPeople();
+        var allProjects = getProjects();
+        var sortCol = "id", sortDir = "asc", currentView = "table";
+
+        var projSel = document.getElementById("fProject");
+        allProjects.forEach(function(p) {
+            projSel.innerHTML += '<option value="' + p.id + '">' + p.name + '</option>';
+        });
+
+        var rSel = document.getElementById("fReporter");
+        allPeople.forEach(function(p) {
+            rSel.innerHTML += '<option value="' + p.id + '">' + p.name + ' ' + p.surname + '</option>';
+        });
+
+        var aSel = document.getElementById("fAssignee");
+        allPeople.forEach(function(p) {
+            aSel.innerHTML += '<option value="' + p.id + '">' + p.name + ' ' + p.surname + '</option>';
+        });
+
+        function getFilters() {
+            return {
+                search: document.getElementById("searchInput").value.toLowerCase(),
+                status: document.getElementById("fStatus").value,
+                priority: document.getElementById("fPriority").value,
+                project: document.getElementById("fProject").value,
+                reporter: document.getElementById("fReporter").value,
+                assignee: document.getElementById("fAssignee").value,
+                from: document.getElementById("fDateFrom").value,
+                to: document.getElementById("fDateTo").value
+            };
+        }
+
+        function applyFilters() {
+            var f = getFilters();
+            var issues = allIssues.filter(function(issue) {
+                if (f.search && !issue.summary.toLowerCase().includes(f.search) && !(issue.description||"").toLowerCase().includes(f.search)) return false;
+                if (f.status && issue.status !== f.status) return false;
+                if (f.priority && issue.priority !== f.priority) return false;
+                if (f.project && String(issue.projectId) !== f.project) return false;
+                if (f.reporter && String(issue.identifiedBy) !== f.reporter) return false;
+                if (f.assignee && String(issue.assignedTo) !== f.assignee) return false;
+                if (f.from && issue.dateIdentified < f.from) return false;
+                if (f.to && issue.dateIdentified > f.to) return false;
+                return true;
+            });
+
+            issues.sort(function(a, b) {
+                var va = a[sortCol] || "", vb = b[sortCol] || "";
+                if (sortCol === "projectId") { va = getProjectName(a.projectId); vb = getProjectName(b.projectId); }
+                if (sortCol === "identifiedBy") { va = getPersonName(a.identifiedBy); vb = getPersonName(b.identifiedBy); }
+                if (sortCol === "assignedTo") { va = getPersonName(a.assignedTo); vb = getPersonName(b.assignedTo); }
+                if (va < vb) return sortDir === "asc" ? -1 : 1;
+                if (va > vb) return sortDir === "asc" ? 1 : -1;
+                return 0;
+            });
+
+            renderActiveTags(f);
+            document.getElementById("filterCount").textContent = "Showing " + issues.length + " of " + allIssues.length + " issues";
+
+            if (currentView === "table") renderTable(issues);
+            else renderGroups(issues);
+        }
+
+        function renderTable(issues) {
+            var tbody = document.getElementById("issuesTbody");
+            if (!issues.length) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="9"><i class="fas fa-search empty-icon"></i>No issues match your filters</td></tr>';
+                return;
+            }
+            var html = "";
+            issues.forEach(function(issue) {
+                html += '<tr>';
+                html += '<td><span class="id-badge">#' + issue.id + '</span></td>';
+                html += '<td><strong style="cursor:pointer;" onclick="openDetail(' + issue.id + ')">' + escapeHtml(issue.summary) + '</strong></td>';
+                html += '<td>' + getProjectName(issue.projectId) + '</td>';
+                html += '<td>' + getPersonName(issue.identifiedBy) + '</td>';
+                html += '<td>' + getPersonName(issue.assignedTo) + '</td>';
+                html += '<td><span class="badge badge-' + issue.priority + '">' + issue.priority + '</span></td>';
+                html += '<td><span class="badge badge-' + issue.status + '">' + issue.status + '</span></td>';
+                html += '<td>' + (issue.targetResoDate || "—") + '</td>';
+                html += '<td class="td-actions">';
+                html += '<button class="btn-icon" onclick="openDetail(' + issue.id + ')"><i class="fas fa-eye"></i></button>';
+                html += '<button class="btn-icon-edit" onclick="window.location.href=\'edit-issue.html?id=' + issue.id + '\'"><i class="fas fa-edit"></i></button>';
+                html += '</td></tr>';
+            });
+            tbody.innerHTML = html;
+        }
+
+        function renderGroups(issues) {
+            var groupView = document.getElementById("groupView");
+            var grouped = {};
+            issues.forEach(function(issue) {
+                var key = issue.identifiedBy || 0;
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(issue);
+            });
+
+            var colors = ["#4f7cff","#2dd68a","#f5a524","#ff4f6a","#a855f7"];
+            var html = "";
+            var idx = 0;
+            for (var personId in grouped) {
+                var personIssues = grouped[personId];
+                var person = allPeople.find(function(p){ return p.id === parseInt(personId); });
+                var name = person ? (person.name + " " + person.surname) : "Unknown";
+                var initials = person ? (person.name[0] + person.surname[0]) : "?";
+                var color = colors[idx % colors.length];
+                idx++;
+
+                html += '<div class="reporter-group open">';
+                html += '<div class="reporter-group-head" onclick="this.parentElement.classList.toggle(\'open\')">';
+                html += '<div class="reporter-avatar" style="background:' + color + '">' + initials + '</div>';
+                html += '<div><div class="reporter-name">' + name + '</div>';
+                html += '<div style="font-size:11px;color:var(--text3);">' + (person && person.role ? person.role : "") + '</div></div>';
+                html += '<span class="reporter-count">' + personIssues.length + ' issue' + (personIssues.length !== 1 ? "s" : "") + '</span>';
+                html += '<i class="fas fa-chevron-down reporter-toggle"></i>';
+                html += '</div>';
+                html += '<div class="reporter-issues"><table class="data-table"><thead><tr>';
+                html += '<th>ID</th><th>Summary</th><th>Project</th><th>Assignee</th><th>Priority</th><th>Status</th><th>Date</th><th>Actions</th>';
+                html += '</tr></thead><tbody>';
+                personIssues.forEach(function(issue) {
+                    html += '<tr>';
+                    html += '<td><span class="id-badge">#' + issue.id + '</span></td>';
+                    html += '<td><strong style="cursor:pointer;" onclick="openDetail(' + issue.id + ')">' + escapeHtml(issue.summary) + '</strong></td>';
+                    html += '<td>' + getProjectName(issue.projectId) + '</td>';
+                    html += '<td>' + getPersonName(issue.assignedTo) + '</td>';
+                    html += '<td><span class="badge badge-' + issue.priority + '">' + issue.priority + '</span></td>';
+                    html += '<td><span class="badge badge-' + issue.status + '">' + issue.status + '</span></td>';
+                    html += '<td>' + (issue.dateIdentified || "—") + '</td>';
+                    html += '<td class="td-actions">';
+                    html += '<button class="btn-icon" onclick="openDetail(' + issue.id + ')"><i class="fas fa-eye"></i></button>';
+                    html += '<button class="btn-icon-edit" onclick="window.location.href=\'edit-issue.html?id=' + issue.id + '\'"><i class="fas fa-edit"></i></button>';
+                    html += '</td></tr>';
+                });
+                html += '</tbody></table></div></div>';
+            }
+            if (!html) html = '<div style="text-align:center;padding:48px;color:var(--text3);">No issues found</div>';
+            groupView.innerHTML = html;
+        }
+
+        function renderActiveTags(f) {
+            var tags = [];
+            if (f.search) tags.push({ label: 'Search: "' + f.search + '"', key: "search" });
+            if (f.status) tags.push({ label: "Status: " + f.status, key: "status" });
+            if (f.priority) tags.push({ label: "Priority: " + f.priority, key: "priority" });
+            if (f.project) { var p = allProjects.find(function(p){ return p.id == f.project; }); tags.push({ label: "Project: " + (p ? p.name : ""), key: "project" }); }
+            if (f.reporter) { var p2 = allPeople.find(function(p){ return p.id == f.reporter; }); tags.push({ label: "Reporter: " + (p2 ? p2.name : ""), key: "reporter" }); }
+            if (f.assignee) { var p3 = allPeople.find(function(p){ return p.id == f.assignee; }); tags.push({ label: "Assignee: " + (p3 ? p3.name : ""), key: "assignee" }); }
+            if (f.from) tags.push({ label: "From: " + f.from, key: "from" });
+            if (f.to) tags.push({ label: "To: " + f.to, key: "to" });
+            var html = "";
+            tags.forEach(function(t) {
+                html += '<span class="filter-tag">' + t.label + '<button onclick="clearTag(\'' + t.key + '\')">&times;</button></span>';
+            });
+            document.getElementById("activeTags").innerHTML = html;
+        }
+
+        function clearTag(key) {
+            var map = { search:"searchInput", status:"fStatus", priority:"fPriority", project:"fProject", reporter:"fReporter", assignee:"fAssignee", from:"fDateFrom", to:"fDateTo" };
+            var el = document.getElementById(map[key]);
+            if (el) el.value = "";
+            applyFilters();
+        }
+
+        function clearFilters() {
+            ["searchInput","fStatus","fPriority","fProject","fReporter","fAssignee","fDateFrom","fDateTo"].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.value = "";
+            });
+            applyFilters();
+        }
+
+        function sortBy(col) {
+            if (sortCol === col) sortDir = sortDir === "asc" ? "desc" : "asc";
+            else { sortCol = col; sortDir = "asc"; }
+            document.querySelectorAll(".data-table th").forEach(function(th) { th.classList.remove("sort-asc","sort-desc"); });
+            var th = document.getElementById("th-" + col);
+            if (th) th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
+            applyFilters();
+        }
+
+        function setView(v) {
+            currentView = v;
+            document.getElementById("btnTable").classList.toggle("active", v === "table");
+            document.getElementById("btnGroup").classList.toggle("active", v === "group");
+            document.getElementById("tableView").style.display = v === "table" ? "block" : "none";
+            document.getElementById("groupView").style.display = v === "group" ? "block" : "none";
+            applyFilters();
+        }
+
+        function openDetail(id) {
+            var issue = allIssues.find(function(i){ return i.id === id; });
+            if (!issue) return;
+            var comments = getComments().filter(function(c){ return c.issueId === id; });
+            var modal = document.getElementById("detailModal");
+
+            var commentsHtml = "";
+            if (!comments.length) {
+                commentsHtml = '<p style="color:var(--text3);font-size:13px;margin-bottom:12px;">No comments yet.</p>';
+            } else {
+                comments.forEach(function(c) {
+                    commentsHtml += '<div class="comment-item"><div class="comment-meta"><span class="comment-author">' + c.author + '</span><span class="comment-time">' + c.createdAt.split("T")[0] + '</span></div><div class="comment-text">' + escapeHtml(c.text) + '</div></div>';
+                });
+            }
+
+            modal.innerHTML = '<div class="modal-box">'
+                + '<div class="modal-head"><div class="modal-title"><i class="fas fa-bug"></i>&nbsp;<span class="id-badge">#' + issue.id + '</span>&nbsp;' + escapeHtml(issue.summary) + '</div>'
+                + '<button class="modal-close" onclick="document.getElementById(\'detailModal\').classList.add(\'hidden\')">&times;</button></div>'
+                + '<div class="modal-body">'
+                + '<div style="display:flex;gap:8px;margin-bottom:20px;"><span class="badge badge-' + issue.status + '">' + issue.status + '</span><span class="badge badge-' + issue.priority + '">' + issue.priority + '</span></div>'
+                + '<div class="issue-detail-grid">'
+                + '<div class="detail-field"><span class="detail-label">Project</span><span class="detail-value">' + getProjectName(issue.projectId) + '</span></div>'
+                + '<div class="detail-field"><span class="detail-label">Assigned To</span><span class="detail-value">' + getPersonName(issue.assignedTo) + '</span></div>'
+                + '<div class="detail-field"><span class="detail-label">Reported By</span><span class="detail-value">' + getPersonName(issue.identifiedBy) + '</span></div>'
+                + '<div class="detail-field"><span class="detail-label">Date Identified</span><span class="detail-value">' + (issue.dateIdentified||"—") + '</span></div>'
+                + '<div class="detail-field"><span class="detail-label">Target Date</span><span class="detail-value">' + (issue.targetResoDate||"—") + '</span></div>'
+                + '<div class="detail-field"><span class="detail-label">Resolved On</span><span class="detail-value">' + (issue.actualResoDate||"—") + '</span></div>'
+                + '</div>'
+                + '<div class="detail-description"><span class="detail-label">Description</span><p>' + escapeHtml(issue.description) + '</p></div>'
+                + (issue.resoSummary ? '<div class="detail-description"><span class="detail-label">Resolution</span><p>' + escapeHtml(issue.resoSummary) + '</p></div>' : '')
+                + '<div style="display:flex;gap:10px;margin-top:16px;"><a href="edit-issue.html?id=' + issue.id + '" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit Issue</a></div>'
+                + '<div class="comments-section"><div class="comments-title"><i class="fas fa-comments"></i> Comments (' + comments.length + ')</div>'
+                + commentsHtml
+                + '<div class="comment-form"><textarea id="newComment" placeholder="Add a comment…"></textarea>'
+                + '<button class="btn btn-primary btn-sm" onclick="addComment(' + issue.id + ')"><i class="fas fa-paper-plane"></i></button>'
+                + '</div></div></div></div>';
+
+            modal.classList.remove("hidden");
+        }
+
+        function addComment(issueId) {
+            var text = document.getElementById("newComment").value.trim();
+            if (!text) return;
+            var comments = getComments();
+            comments.push({ id: Date.now(), issueId: issueId, author: "Admin", text: text, createdAt: new Date().toISOString() });
+            saveComments(comments);
+            allIssues = getIssues();
+            openDetail(issueId);
+            showToast("Comment added");
+        }
+
+        window.openDetail = openDetail;
+        window.addComment = addComment;
+        window.applyFilters = applyFilters;
+        window.clearFilters = clearFilters;
+        window.clearTag = clearTag;
+        window.sortBy = sortBy;
+        window.setView = setView;
+
+        applyFilters();
+    </script>
+</body>
+</html>

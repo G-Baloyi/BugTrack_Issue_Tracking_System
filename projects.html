@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugTrack — Projects</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-mode">
+    <script src="login.js"></script>
+    <script src="storage.js"></script>
+    <script src="shared.js"></script>
+    <script>
+        checkAuth();
+        const GRADIENTS = ["#4f7cff,#a855f7","#2dd68a,#4f7cff","#f5a524,#ff4f6a","#a855f7,#ff4f6a","#06b6d4,#2dd68a"];
+
+        buildShell("projects", `
+            <div class="page-header">
+                <div class="page-title-group">
+                    <h1 class="page-title">Projects</h1>
+                    <p class="page-subtitle">Manage projects and view issue distribution</p>
+                </div>
+                <button class="btn btn-primary" onclick="showProjectModal()"><i class="fas fa-plus"></i> Add Project</button>
+            </div>
+            <div class="cards-grid" id="projectsGrid"></div>
+            <div id="projectModal" class="modal-overlay hidden">
+                <div class="modal-box" style="max-width:460px;">
+                    <div class="modal-head">
+                        <div class="modal-title" id="projModalTitle"><i class="fas fa-plus-circle"></i> Add Project</div>
+                        <button class="modal-close" onclick="closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="projId">
+                        <div class="form-grid form-grid-1">
+                            <div class="field"><label>Project Name *</label><input type="text" id="projName" placeholder="Project name"></div>
+                        </div>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label>Project Key</label>
+                                <input type="text" id="projKey" placeholder="e.g. FRONTEND">
+                                <span class="field-hint">Auto-generated if empty</span>
+                            </div>
+                        </div>
+                        <div class="form-grid form-grid-1">
+                            <div class="field"><label>Description</label><textarea id="projDesc" placeholder="Short project description" rows="2"></textarea></div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-danger" id="deleteProjBtn" style="display:none;" onclick="deleteProject()"><i class="fas fa-trash"></i> Delete</button>
+                            <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                            <button class="btn btn-primary" onclick="saveProject()"><i class="fas fa-save"></i> Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        function renderProjects() {
+            const projects = getProjects();
+            const issues = getIssues();
+            const grid = document.getElementById("projectsGrid");
+            grid.innerHTML = projects.map((p, idx) => {
+                const projIssues = issues.filter(i => i.projectId === p.id);
+                const open = projIssues.filter(i => i.status === "open").length;
+                const overdue = projIssues.filter(i => i.status === "overdue").length;
+                const resolved = projIssues.filter(i => i.status === "resolved").length;
+                const gradient = GRADIENTS[idx % GRADIENTS.length];
+                return `
+                    <div class="project-card" onclick="editProject(${p.id})">
+                        <div class="card-actions">
+                            <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();editProject(${p.id})"><i class="fas fa-edit"></i></button>
+                        </div>
+                        <div class="project-accent" style="background:linear-gradient(90deg,${gradient})"></div>
+                        <span class="project-key">${p.key || "—"}</span>
+                        <div class="project-name">${p.name}</div>
+                        <div class="project-desc">${p.description || "No description"}</div>
+                        <div class="project-stats">
+                            <div class="person-stat"><div class="person-stat-num" style="color:var(--amber)">${open}</div><div class="person-stat-label">Open</div></div>
+                            <div class="person-stat"><div class="person-stat-num" style="color:var(--red)">${overdue}</div><div class="person-stat-label">Overdue</div></div>
+                            <div class="person-stat"><div class="person-stat-num" style="color:var(--green)">${resolved}</div><div class="person-stat-label">Resolved</div></div>
+                            <div class="person-stat"><div class="person-stat-num">${projIssues.length}</div><div class="person-stat-label">Total</div></div>
+                        </div>
+                    </div>`;
+            }).join("");
+        }
+
+        function showProjectModal(project) {
+            document.getElementById("projId").value = project ? project.id : "";
+            document.getElementById("projName").value = project ? project.name : "";
+            document.getElementById("projKey").value = project ? (project.key || "") : "";
+            document.getElementById("projDesc").value = project ? (project.description || "") : "";
+            document.getElementById("projModalTitle").innerHTML = project ? `<i class="fas fa-edit"></i> Edit Project` : `<i class="fas fa-plus-circle"></i> Add Project`;
+            document.getElementById("deleteProjBtn").style.display = project ? "block" : "none";
+            document.getElementById("projectModal").classList.remove("hidden");
+        }
+
+        function editProject(id) {
+            showProjectModal(getProjects().find(p => p.id === id));
+        }
+
+        function closeModal() { document.getElementById("projectModal").classList.add("hidden"); }
+
+        function saveProject() {
+            const name = document.getElementById("projName").value.trim();
+            if (!name) { showToast("Name is required", "error"); return; }
+            const id = document.getElementById("projId").value;
+            const projects = getProjects();
+            const key = document.getElementById("projKey").value.trim() || name.replace(/\s+/g,"").toUpperCase().substring(0,8);
+            if (id) {
+                const idx = projects.findIndex(p => p.id == id);
+                projects[idx] = { ...projects[idx], name, key, description: document.getElementById("projDesc").value };
+            } else {
+                projects.push({ id: Date.now(), name, key, description: document.getElementById("projDesc").value });
+            }
+            saveProjects(projects);
+            closeModal();
+            renderProjects();
+            showToast(id ? "Project updated" : "Project created");
+        }
+
+        function deleteProject() {
+            const id = parseInt(document.getElementById("projId").value);
+            if (!confirm("Delete this project?")) return;
+            saveProjects(getProjects().filter(p => p.id !== id));
+            closeModal();
+            renderProjects();
+            showToast("Project deleted");
+        }
+
+        window.showProjectModal = showProjectModal;
+        window.editProject = editProject;
+        window.closeModal = closeModal;
+        window.saveProject = saveProject;
+        window.deleteProject = deleteProject;
+        
+        renderProjects();
+    </script>
+</body>
+</html>

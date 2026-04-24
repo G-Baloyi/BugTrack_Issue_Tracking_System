@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugTrack — Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-mode">
+    <div class="app-shell">
+        <nav class="topbar">
+            <a href="dashboard.html" class="topbar-logo"><i class="fas fa-bug"></i> BugTrack</a>
+            <div class="topbar-right">
+                <div class="topbar-user">
+                    <div class="topbar-avatar">AD</div>
+                    <span class="topbar-username">admin</span>
+                </div>
+                <button class="btn-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+            </div>
+        </nav>
+        <div class="app-body">
+            <aside class="sidebar">
+                <span class="nav-section-label">Navigation</span>
+                <a href="dashboard.html" class="nav-link active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                <a href="create-issue.html" class="nav-link"><i class="fas fa-plus-circle"></i> Create Issue</a>
+                <a href="view-all-issues.html" class="nav-link"><i class="fas fa-list-ul"></i> All Issues <span class="nav-badge" id="sideOverdueBadge" style="display:none"></span></a>
+                <a href="my-issues.html" class="nav-link"><i class="fas fa-user-check"></i> My Issues</a>
+                <a href="people.html" class="nav-link"><i class="fas fa-users"></i> People</a>
+                <a href="projects.html" class="nav-link"><i class="fas fa-project-diagram"></i> Projects</a>
+            </aside>
+            <main class="main-content">
+                <div class="page-header">
+                    <div class="page-title-group">
+                        <h1 class="page-title">Dashboard</h1>
+                        <p class="page-subtitle">Overview of all active issues and team progress</p>
+                    </div>
+                    <a href="create-issue.html" class="btn btn-primary"><i class="fas fa-plus"></i> New Issue</a>
+                </div>
+
+                <div class="stats-row">
+                    <div class="stat-card blue">
+                        <div class="stat-icon"><i class="fas fa-bug"></i></div>
+                        <div class="stat-num" id="statTotal">0</div>
+                        <div class="stat-label">Total Issues</div>
+                    </div>
+                    <div class="stat-card amber">
+                        <div class="stat-icon"><i class="fas fa-circle-dot"></i></div>
+                        <div class="stat-num" id="statOpen">0</div>
+                        <div class="stat-label">Open</div>
+                    </div>
+                    <div class="stat-card green">
+                        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="stat-num" id="statResolved">0</div>
+                        <div class="stat-label">Resolved</div>
+                    </div>
+                    <div class="stat-card red">
+                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                        <div class="stat-num" id="statOverdue">0</div>
+                        <div class="stat-label">Overdue</div>
+                    </div>
+                </div>
+
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                    <h2 style="font-family:var(--font-head);font-size:17px;font-weight:700;">Issue Board</h2>
+                    <a href="view-all-issues.html" class="btn btn-ghost btn-sm"><i class="fas fa-list"></i> View All</a>
+                </div>
+
+                <div class="kanban-wrap">
+                    <div class="kanban-col">
+                        <div class="kanban-col-head">
+                            <div class="kanban-col-title"><span class="col-dot open"></span> Open</div>
+                            <span class="kanban-count" id="openCount">0</span>
+                        </div>
+                        <div class="kanban-cards" id="openCards"></div>
+                    </div>
+                    <div class="kanban-col">
+                        <div class="kanban-col-head">
+                            <div class="kanban-col-title"><span class="col-dot overdue"></span> Overdue</div>
+                            <span class="kanban-count" id="overdueCount">0</span>
+                        </div>
+                        <div class="kanban-cards" id="overdueCards"></div>
+                    </div>
+                    <div class="kanban-col">
+                        <div class="kanban-col-head">
+                            <div class="kanban-col-title"><span class="col-dot resolved"></span> Resolved</div>
+                            <span class="kanban-count" id="resolvedCount">0</span>
+                        </div>
+                        <div class="kanban-cards" id="resolvedCards"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="detailModal" class="modal-overlay hidden"></div>
+
+    <script src="login.js"></script>
+    <script src="storage.js"></script>
+    <script src="shared.js"></script>
+    <script>
+        if (localStorage.getItem("isLoggedIn") !== "true") { window.location.href = "index.html"; }
+
+        initTheme();
+        addThemeToggle();
+
+        var issues = getIssues();
+        var total = issues.length;
+        var openList = issues.filter(function(i){ return i.status === "open"; });
+        var resolvedList = issues.filter(function(i){ return i.status === "resolved"; });
+        var overdueList = issues.filter(function(i){ return i.status === "overdue"; });
+
+        document.getElementById("statTotal").textContent = total;
+        document.getElementById("statOpen").textContent = openList.length;
+        document.getElementById("statResolved").textContent = resolvedList.length;
+        document.getElementById("statOverdue").textContent = overdueList.length;
+        document.getElementById("openCount").textContent = openList.length;
+        document.getElementById("resolvedCount").textContent = resolvedList.length;
+        document.getElementById("overdueCount").textContent = overdueList.length;
+
+        if (overdueList.length > 0) {
+            var badge = document.getElementById("sideOverdueBadge");
+            badge.textContent = overdueList.length;
+            badge.style.display = "inline";
+        }
+
+        function renderCards(containerId, list) {
+            var container = document.getElementById(containerId);
+            if (!list.length) {
+                container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;"><i class="fas fa-inbox" style="display:block;font-size:28px;margin-bottom:8px;opacity:.4;"></i>No issues</div>';
+                return;
+            }
+            var html = "";
+            list.forEach(function(issue) {
+                html += '<div class="k-card" onclick="openDetail(' + issue.id + ')">';
+                html += '<div class="k-card-title">' + escapeHtml(issue.summary) + '</div>';
+                html += '<div class="k-meta">';
+                html += '<div class="k-meta-row"><i class="fas fa-folder"></i>' + getProjectName(issue.projectId) + '</div>';
+                html += '<div class="k-meta-row"><i class="fas fa-user"></i>' + getPersonName(issue.assignedTo) + '</div>';
+                html += '<div class="k-meta-row"><i class="fas fa-calendar"></i>' + (issue.targetResoDate || "No date") + '</div>';
+                html += '</div>';
+                html += '<div style="display:flex;gap:6px;align-items:center;padding-top:8px;border-top:1px solid var(--border);">';
+                html += '<span class="badge badge-' + issue.priority + '">' + issue.priority + '</span>';
+                html += '<button class="btn-icon btn-sm" style="margin-left:auto;" onclick="event.stopPropagation();window.location.href=\'edit-issue.html?id=' + issue.id + '\'"><i class="fas fa-edit"></i> Edit</button>';
+                html += '</div></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        renderCards("openCards", openList);
+        renderCards("overdueCards", overdueList);
+        renderCards("resolvedCards", resolvedList);
+
+        function openDetail(id) {
+            var issue = issues.find(function(i){ return i.id === id; });
+            if (!issue) return;
+            var comments = getComments().filter(function(c){ return c.issueId === id; });
+            var modal = document.getElementById("detailModal");
+
+            var commentsHtml = "";
+            if (comments.length === 0) {
+                commentsHtml = '<p style="color:var(--text3);font-size:13px;margin-bottom:12px;">No comments yet.</p>';
+            } else {
+                comments.forEach(function(c) {
+                    commentsHtml += '<div class="comment-item">';
+                    commentsHtml += '<div class="comment-meta"><span class="comment-author">' + c.author + '</span><span class="comment-time">' + c.createdAt.split("T")[0] + '</span></div>';
+                    commentsHtml += '<div class="comment-text">' + escapeHtml(c.text) + '</div>';
+                    commentsHtml += '</div>';
+                });
+            }
+
+            modal.innerHTML = '<div class="modal-box">'
+                + '<div class="modal-head">'
+                + '<div class="modal-title"><i class="fas fa-bug"></i><span class="id-badge" style="margin-left:8px;">#' + issue.id + '</span>&nbsp;' + escapeHtml(issue.summary) + '</div>'
+                + '<button class="modal-close" onclick="document.getElementById(\'detailModal\').classList.add(\'hidden\')">&times;</button>'
+                + '</div>'
+                + '<div class="modal-body">'
+                + '<div style="display:flex;gap:8px;margin-bottom:20px;">'
+                + '<span class="badge badge-' + issue.status + '">' + issue.status + '</span>'
+                + '<span class="badge badge-' + issue.priority + '">' + issue.priority + '</span>'
+                + '</div>'
+                + '<div class="issue-detail-grid">'
+                + '<div class="detail-field"><span class="detail-label">Project</span><span class="detail-value">' + getProjectName(issue.projectId) + '</span></div>'
+                + '<div class="detail-field"><span class="detail-label">Assigned To</span><span class="detail-value">' + getPersonName(issue.assignedTo) + '</span></div>'
+                + '<div class="detail-field"><span class="detail-label">Reported By</span><span class="detail-value">' + getPersonName(issue.identifiedBy) + '</span></div>'
+                + '<div class="detail-field"><span class="detail-label">Date Identified</span><span class="detail-value">' + (issue.dateIdentified || "—") + '</span></div>'
+                + '<div class="detail-field"><span class="detail-label">Target Date</span><span class="detail-value">' + (issue.targetResoDate || "—") + '</span></div>'
+                + '<div class="detail-field"><span class="detail-label">Resolved On</span><span class="detail-value">' + (issue.actualResoDate || "—") + '</span></div>'
+                + '</div>'
+                + '<div class="detail-description"><span class="detail-label">Description</span><p>' + escapeHtml(issue.description) + '</p></div>'
+                + (issue.resoSummary ? '<div class="detail-description"><span class="detail-label">Resolution</span><p>' + escapeHtml(issue.resoSummary) + '</p></div>' : '')
+                + '<div style="display:flex;gap:10px;margin-top:16px;"><a href="edit-issue.html?id=' + issue.id + '" class="btn btn-ghost btn-sm"><i class="fas fa-edit"></i> Edit Issue</a></div>'
+                + '<div class="comments-section">'
+                + '<div class="comments-title"><i class="fas fa-comments"></i> Comments (' + comments.length + ')</div>'
+                + commentsHtml
+                + '<div class="comment-form">'
+                + '<textarea id="newComment" placeholder="Add a comment…"></textarea>'
+                + '<button class="btn btn-primary btn-sm" onclick="addComment(' + issue.id + ')"><i class="fas fa-paper-plane"></i></button>'
+                + '</div></div></div></div>';
+
+            modal.classList.remove("hidden");
+        }
+
+        window.openDetail = openDetail;
+
+        function addComment(issueId) {
+            var text = document.getElementById("newComment").value.trim();
+            if (!text) return;
+            var comments = getComments();
+            comments.push({ id: Date.now(), issueId: issueId, author: "Admin", text: text, createdAt: new Date().toISOString() });
+            saveComments(comments);
+            openDetail(issueId);
+            showToast("Comment added");
+        }
+
+        window.addComment = addComment;
+    </script>
+</body>
+</html>

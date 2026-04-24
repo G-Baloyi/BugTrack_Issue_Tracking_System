@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugTrack — People</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-mode">
+    <script src="login.js"></script>
+    <script src="storage.js"></script>
+    <script src="shared.js"></script>
+    <script>
+        checkAuth();
+        const COLORS = ["#4f7cff","#2dd68a","#f5a524","#ff4f6a","#a855f7","#06b6d4"];
+
+        buildShell("people", `
+            <div class="page-header">
+                <div class="page-title-group">
+                    <h1 class="page-title">People</h1>
+                    <p class="page-subtitle">Team members and their issue workloads</p>
+                </div>
+                <button class="btn btn-primary" onclick="showPersonModal()"><i class="fas fa-plus"></i> Add Person</button>
+            </div>
+            <div class="cards-grid" id="peopleGrid"></div>
+            <div id="personModal" class="modal-overlay hidden">
+                <div class="modal-box" style="max-width:480px;">
+                    <div class="modal-head">
+                        <div class="modal-title" id="modalTitle"><i class="fas fa-user-plus"></i> Add Team Member</div>
+                        <button class="modal-close" onclick="closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="personId">
+                        <div class="form-grid form-grid-1">
+                            <div class="field"><label>First Name *</label><input type="text" id="pFirstName" placeholder="First name"></div>
+                        </div>
+                        <div class="form-grid form-grid-1">
+                            <div class="field"><label>Last Name *</label><input type="text" id="pLastName" placeholder="Last name"></div>
+                        </div>
+                        <div class="form-grid">
+                            <div class="field"><label>Username *</label><input type="text" id="pUsername" placeholder="username"></div>
+                            <div class="field"><label>Role</label><input type="text" id="pRole" placeholder="e.g. Frontend Dev"></div>
+                        </div>
+                        <div class="form-grid form-grid-1">
+                            <div class="field"><label>Email *</label><input type="email" id="pEmail" placeholder="email@company.com"></div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-danger" id="deletePersonBtn" style="display:none;" onclick="deletePerson()"><i class="fas fa-trash"></i> Delete</button>
+                            <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                            <button class="btn btn-primary" onclick="savePerson()"><i class="fas fa-save"></i> Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        function renderPeople() {
+            const people = getPeople();
+            const issues = getIssues();
+            const grid = document.getElementById("peopleGrid");
+            if (!grid) return;
+            grid.innerHTML = people.map((p, idx) => {
+                const myIssues = issues.filter(i => i.identifiedBy === p.id);
+                const assigned = issues.filter(i => i.assignedTo === p.id);
+                const open = assigned.filter(i => i.status === "open" || i.status === "overdue").length;
+                const color = COLORS[idx % COLORS.length];
+                return `
+                    <div class="person-card" onclick="editPerson(${p.id})">
+                        <div class="card-actions">
+                            <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();editPerson(${p.id})"><i class="fas fa-edit"></i></button>
+                        </div>
+                        <div class="person-avatar" style="background:${color}">${p.name[0]}${p.surname[0]}</div>
+                        <div class="person-name">${p.name} ${p.surname}</div>
+                        <div class="person-role">${p.role || "Team Member"}</div>
+                        <div class="person-username">@${p.username}</div>
+                        <div class="person-email">${p.email}</div>
+                        <div class="person-stats">
+                            <div class="person-stat"><div class="person-stat-num">${myIssues.length}</div><div class="person-stat-label">Reported</div></div>
+                            <div class="person-stat"><div class="person-stat-num">${assigned.length}</div><div class="person-stat-label">Assigned</div></div>
+                            <div class="person-stat"><div class="person-stat-num" style="color:${open>0?'var(--amber)':'var(--green)'}">${open}</div><div class="person-stat-label">Open</div></div>
+                        </div>
+                    </div>`;
+            }).join("");
+        }
+
+        function showPersonModal(person) {
+            document.getElementById("personId").value = person ? person.id : "";
+            document.getElementById("pFirstName").value = person ? person.name : "";
+            document.getElementById("pLastName").value = person ? person.surname : "";
+            document.getElementById("pUsername").value = person ? person.username : "";
+            document.getElementById("pRole").value = person ? (person.role || "") : "";
+            document.getElementById("pEmail").value = person ? person.email : "";
+            document.getElementById("modalTitle").innerHTML = person ? `<i class="fas fa-edit"></i> Edit Person` : `<i class="fas fa-user-plus"></i> Add Team Member`;
+            document.getElementById("deletePersonBtn").style.display = person ? "block" : "none";
+            document.getElementById("personModal").classList.remove("hidden");
+        }
+
+        function editPerson(id) {
+            const p = getPeople().find(p => p.id === id);
+            if (p) showPersonModal(p);
+        }
+
+        function closeModal() {
+            document.getElementById("personModal").classList.add("hidden");
+        }
+
+        function savePerson() {
+            const id = document.getElementById("personId").value;
+            const name = document.getElementById("pFirstName").value.trim();
+            const surname = document.getElementById("pLastName").value.trim();
+            if (!name || !surname) { showToast("Name is required", "error"); return; }
+            const people = getPeople();
+            if (id) {
+                const idx = people.findIndex(p => p.id === parseInt(id));
+                people[idx] = { ...people[idx], name, surname, username: document.getElementById("pUsername").value, role: document.getElementById("pRole").value, email: document.getElementById("pEmail").value };
+            } else {
+                people.push({ id: Date.now(), name, surname, username: document.getElementById("pUsername").value, role: document.getElementById("pRole").value, email: document.getElementById("pEmail").value });
+            }
+            savePeople(people);
+            closeModal();
+            renderPeople();
+            showToast(id ? "Person updated" : "Person added");
+        }
+
+        function deletePerson() {
+            const id = parseInt(document.getElementById("personId").value);
+            if (!confirm("Delete this person?")) return;
+            savePeople(getPeople().filter(p => p.id !== id));
+            closeModal();
+            renderPeople();
+            showToast("Person deleted");
+        }
+
+        window.showPersonModal = showPersonModal;
+        window.editPerson = editPerson;
+        window.closeModal = closeModal;
+        window.savePerson = savePerson;
+        window.deletePerson = deletePerson;
+        
+        renderPeople();
+    </script>
+</body>
+</html>
